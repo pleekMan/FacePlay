@@ -1,0 +1,8 @@
+ofxAssimpModelLoader
+ofxBlur
+ofxCameraFilter
+ofxCv
+ofxFaceTracker
+ofxGui
+ofxOpenCv
+ofxXmlSettings
