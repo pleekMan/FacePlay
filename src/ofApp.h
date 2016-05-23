@@ -4,6 +4,13 @@
 #include "ofxFaceTracker.h"
 #include "ofxAssimpModelLoader.h"
 
+enum GameMode
+{
+	MESH_3D,
+	GESTURE,
+	FACE_TEXTURE	
+};
+
 class ofApp : public ofBaseApp{
 
 	public:
@@ -29,7 +36,17 @@ class ofApp : public ofBaseApp{
 
 		ofxAssimpModelLoader model3d;
 		ofTexture model3dTex;
+		ofLight light;
 
+		ofFbo sceneSurface;
 
+		GameMode gameMode;
+		void draw3dModel();
+		void drawGesture();
+		void drawFaceTexture();
+		void calculateMeshBoundingBox(vector<ofVec3f>& _points);
 
+		ofImage numberGrid;
+		ofRectangle meshBoundingBox;
+		void testTextureBinding();
 };
