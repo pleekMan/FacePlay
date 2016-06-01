@@ -41,7 +41,9 @@ class ofApp : public ofBaseApp{
 		ofxPanel objectDrawConfig;
 
 		// MESH_3D
-		ofxAssimpModelLoader model3d;
+		vector<ofxAssimpModelLoader> models3D;
+		int selectedModel;
+		//ofxAssimpModelLoader model3d;
 		ofTexture model3dTex;
 		ofLight light;
 		ofParameter<float> objectScaleMultiplier;

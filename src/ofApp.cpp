@@ -9,7 +9,7 @@ void ofApp::setup(){
 	ofSetVerticalSync(true);
 	ofDisableArbTex(); // ARB TEXTURE MODE IS IN SCREEN COORDINATES (ALSO, BY DEFAULT)!! LETS USE NORMALIZED COORDINATES
 
-
+	// GLOBALS
 	sceneSurface.allocate(ofGetWidth(), ofGetHeight());
 	sceneSurface.begin();
 	ofClear(0);
@@ -21,15 +21,28 @@ void ofApp::setup(){
 	faceClassifier.load("expressions");
 	faceTracker.setRescale(0.1);
 
-
-	model3d.loadModel("3d/demon mask/maskDemon.dae", false);
-	model3d.enableTextures();
-	model3d.enableNormals();
-
 	gameMode = MESH_3D;
 
+	// GLOBALS - END
+
+	// 3D MODELS SCENE
+	selectedModel = 0;
+	ofxAssimpModelLoader woodMask;
+	woodMask.loadModel("3d/wood mask/maskWood.dae", false);
+	woodMask.enableTextures();
+	woodMask.enableNormals();
+
+	ofxAssimpModelLoader demonMask;
+	demonMask.loadModel("3d/demon mask/maskDemon.dae", false);
+	demonMask.enableTextures();
+	demonMask.enableNormals();
+
+	models3D.push_back(woodMask);
+	models3D.push_back(demonMask);
+
+
 	imageB.loadImage("tigerMask_hd.png");
-	backTribal.loadImage("background.png");
+	backTribal.loadImage("BeachScene.png");
 
 	// CLONE FACE
 	/*
@@ -85,7 +98,7 @@ void ofApp::update(){
 	// DRAW TRACKER FACiAL GIZMO
 	ofPushMatrix();
 	ofTranslate(0, 0, 20);
-	faceTracker.draw();
+	//faceTracker.draw();
 	ofPopMatrix();
 
 	// DRAW GRAPHICS FOR SELECTED MODE
@@ -156,11 +169,13 @@ void ofApp::draw3dModel() {
 	ofDrawCircle(0, 0, 20, 20);
 
 	// RENDER FACETRACKER MESH POINTS
+	/*
 	for (int i = 0; i < faceTracker.getObjectPoints().size(); i++)
 	{
 		ofPoint pointPos = ofPoint(faceTracker.getObjectPoints()[i].x, faceTracker.getObjectPoints()[i].y) * ofPoint(5);
 		ofDrawBitmapString(ofToString(i), pointPos);
 	}
+	*/
 
 	ofRotateX(-orientation.x);
 	ofRotateY(-orientation.y);
@@ -170,7 +185,7 @@ void ofApp::draw3dModel() {
 	//ofRotateX(-90);
 	//ofRotateY(ofMap(ofGetMouseX(), 0, (float)ofGetWindowWidth(), 0, 360));
 	ofScale(objectScaleMultiplier, objectScaleMultiplier, objectScaleMultiplier);
-	model3d.drawFaces();
+	models3D[selectedModel].drawFaces();
 	//model3d.drawWireframe();
 	ofPopMatrix();
 
@@ -236,12 +251,12 @@ void ofApp::drawFaceTexture() {
 	ofNoFill();
 	ofSetColor(255, 0, 0);
 	ofDrawRectangle(meshBoundingBox);
-	ofDrawCircle(faceMesh.getCentroid(),10);
+	ofDrawCircle(faceMesh.getCentroid(), 10);
 
 	vector<ofPoint> vertexTexCoords;
 	for (unsigned int i = 0; i < faceMesh.getVertices().size(); i++)
 	{
-		float xCoord = ofNormalize(faceMesh.getVertex(i).x,meshBoundingBox.x, meshBoundingBox.x + meshBoundingBox.getWidth());
+		float xCoord = ofNormalize(faceMesh.getVertex(i).x, meshBoundingBox.x, meshBoundingBox.x + meshBoundingBox.getWidth());
 		float yCoord = ofNormalize(faceMesh.getVertex(i).y, meshBoundingBox.y, meshBoundingBox.y + meshBoundingBox.getHeight());
 		ofPoint newPoint = ofPoint(xCoord, yCoord);
 
@@ -249,9 +264,16 @@ void ofApp::drawFaceTexture() {
 		//overlayMesh.setTexCoord(i, ofVec2f(faceMesh.getVertex(i).x * numberGrid.getWidth(), faceMesh.getVertex(i).y * numberGrid.getHeight()));
 		//overlayMesh.setTexCoord(i, ofVec2f(xCoord, yCoord));
 	}
-
-	//ofPushMatrix();
-	//ofTranslate(ofGetMouseX(), ofGetMouseY());
+	/*
+	ofPushMatrix();
+	ofScale(ofPoint(objectScaleMultiplier));
+	for (unsigned int i = 0; i < overlayMesh.getVertices().size(); i++)
+	{
+		overlayMesh.setVertex(i, overlayMesh.getVertex(i) - faceMesh.getCentroid());
+	}
+	//ofScale(ofPoint(objectScaleMultiplier));
+	ofTranslate(faceMesh.getCentroid());
+	*/
 
 	ofSetColor(255);
 	imageB.getTextureReference().bind();
@@ -382,6 +404,11 @@ void ofApp::keyPressed(int key){
 	{
 		gameMode = CLONE_FACE;
 	}
+
+	if (key == 'n') {
+		selectedModel = (selectedModel + 1) % models3D.size();
+	}
+
 
 	if (key == 'r') {
 		faceTracker.reset();
