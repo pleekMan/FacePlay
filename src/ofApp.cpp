@@ -19,39 +19,62 @@ void ofApp::setup(){
 
 	faceTracker.setup();
 	faceClassifier.load("expressions");
-	//faceTracker.setRescale(0.25);
-	//faceTracker.setIterations(4);
-	//faceTracker.setAttempts(1);
+	faceTracker.setRescale(0.1);
 
-	model3d.loadModel("3d/unicorn/unicorn.3ds", true);
+
+	model3d.loadModel("3d/demon mask/maskDemon.dae", false);
 	model3d.enableTextures();
 	model3d.enableNormals();
-	//ofImage textureImage;
-	//textureImage.loadImage("3d/unicorn/redAndBlue.png");
-	//model3dTex = textureImage.getTexture();
-	//model3d.getTextureForMesh("RedAndBlue.png");
 
-	gameMode = FACE_TEXTURE;
+	gameMode = MESH_3D;
 
+	imageB.loadImage("tigerMask_hd.png");
+	backTribal.loadImage("background.png");
 
-	numberGrid.loadImage("tigerMask.png");
+	// CLONE FACE
+	/*
+	clone.setup(camera.getWidth(), camera.getHeight());
 
+	maskFbo.allocate(camera.getWidth(), camera.getHeight());
+	sourceFbo.allocate(camera.getWidth(), camera.getHeight());
+	sourceTracker.setup();
+	sourceTracker.setIterations(25);
+	sourceTracker.setAttempts(4);
 
+	if (sourceTracker.update(toCv(imageB))) {
+		sourcePoints = sourceTracker.getImagePoints();
+	}
+	*/
+	// CLONE FACE - END
+
+	createGUI();
 }
 
 //--------------------------------------------------------------
 void ofApp::update(){
+	
+	
+	// CLONE FACE TRACKER CONFIG VALUES (WITHOUT USING LISTENERS)
+	
+	faceTracker.setIterations(trackerIterations);
+	faceTracker.setClamp(trackerClamp);
+	faceTracker.setTolerance(trackerTolerance);
+	faceTracker.setAttempts(trackerAttempts);
+	//faceTracker.setRescale(trackerReScale);
 	
 
 	// BEGIN SCENE SURFACE RENDERING  ------------
 	sceneSurface.begin();
 	ofBackground(0);
 
+	ofSetColor(255);
 	camera.update();
+
 	if (camera.isFrameNew()) {
 		if (faceTracker.update(toCv(camera))) {
 			if(gameMode == GESTURE)faceClassifier.classify(faceTracker);
 		}
+		
 	}
 
 
@@ -65,6 +88,7 @@ void ofApp::update(){
 	faceTracker.draw();
 	ofPopMatrix();
 
+	// DRAW GRAPHICS FOR SELECTED MODE
 	if (gameMode == MESH_3D)
 	{
 		draw3dModel();
@@ -73,15 +97,18 @@ void ofApp::update(){
 	{
 		drawGesture();
 	}
-	else {
-		
+	else if (gameMode == FACE_TEXTURE)
+	{
 		if (faceTracker.getFound())
 		{
+			ofSetColor(255);
 			drawFaceTexture();
 		}
 
 		testTextureBinding();
-		
+	}
+	else {	
+		drawCloneFace();
 	}
 
 	sceneSurface.end();
@@ -92,30 +119,15 @@ void ofApp::update(){
 
 //--------------------------------------------------------------
 void ofApp::draw(){
-	
 	ofSetColor(255);
+	
 	sceneSurface.draw(0, 0);
 
-	/*
-	if (gameMode == FACE_TEXTURE) {
-		if (faceTracker.getFound())
-		{
-			//drawFaceTexture();
-		}
+	trackerConfig.draw();
+	objectDrawConfig.draw();
 
-		testTextureBinding();
-	}
-
-	
-	ofPlanePrimitive testPlane;
-	testPlane.set(300, 300);
-	testPlane.setPosition(ofVec2f(ofGetMouseX(), ofGetMouseY()));
-
-	ofTexture tex = numberGrid.getTextureReference();
-	tex.bind();
-	testPlane.draw();
-	tex.unbind();
-	*/
+	backTribal.draw(0, 0);
+	ofDrawBitmapString("FR: " + ofToString(ofGetFrameRate()), ofGetWidth() - 100, 20);
 
 }
 
@@ -124,9 +136,12 @@ void ofApp::draw3dModel() {
 	ofEnableDepthTest();
 	ofEnableLighting();
 	ofSetGlobalAmbientColor(ofColor(255));
-	//light.enable();
-	light.setDiffuseColor(255);
-	light.setPosition(300, 300, 50);
+	light.setAreaLight(200,200);
+	light.enable();
+	light.setDiffuseColor(ofColor(0,200,250));
+	light.setPosition(ofGetMouseX(), ofGetMouseY(), 200);
+
+	ofDrawBox(light.getPosition(), 20);
 
 	ofSetColor(255);
 
@@ -152,9 +167,9 @@ void ofApp::draw3dModel() {
 	ofRotateZ(orientation.z);
 
 	ofPushMatrix();
-	ofRotateX(-90);
-	ofRotateY(ofMap(ofGetMouseX(), 0, (float)ofGetWindowWidth(), 0, 360));
-	ofScale(0.5, 0.5, 0.5);
+	//ofRotateX(-90);
+	//ofRotateY(ofMap(ofGetMouseX(), 0, (float)ofGetWindowWidth(), 0, 360));
+	ofScale(objectScaleMultiplier, objectScaleMultiplier, objectScaleMultiplier);
 	model3d.drawFaces();
 	//model3d.drawWireframe();
 	ofPopMatrix();
@@ -238,11 +253,38 @@ void ofApp::drawFaceTexture() {
 	//ofPushMatrix();
 	//ofTranslate(ofGetMouseX(), ofGetMouseY());
 
-	numberGrid.getTextureReference().bind();
+	ofSetColor(255);
+	imageB.getTextureReference().bind();
 	overlayMesh.draw();
-	numberGrid.getTextureReference().unbind();
+	imageB.getTextureReference().unbind();
 	
 	//ofPopMatrix();
+
+}
+
+void ofApp::drawCloneFace() {
+
+		if (faceTracker.getFound()) {
+			ofMesh camMesh = faceTracker.getImageMesh();
+			camMesh.clearTexCoords();
+			camMesh.addTexCoords(sourcePoints);
+
+			maskFbo.begin();
+			ofClear(0, 255);
+			camMesh.draw();
+			maskFbo.end();
+
+			sourceFbo.begin();
+			ofClear(0, 255);
+			imageB.bind();
+			camMesh.draw();
+			imageB.unbind();
+			sourceFbo.end();
+
+			clone.setStrength(16);
+			clone.update(sourceFbo.getTextureReference(), camera.getTextureReference(), maskFbo.getTextureReference());
+		}
+	
 
 }
 
@@ -259,9 +301,9 @@ void ofApp::testTextureBinding() {
 	ofPushMatrix();
 	ofTranslate(ofGetMouseX(), ofGetMouseY());
 	
-	numberGrid.getTextureReference().bind();
+	imageB.getTextureReference().bind();
 	newMesh.draw();
-	numberGrid.getTextureReference().unbind();
+	imageB.getTextureReference().unbind();
 
 	ofSetColor(0, 0, 255);
 	ofFill();
@@ -301,6 +343,27 @@ void ofApp::calculateMeshBoundingBox(vector<ofVec3f>& _points)
 	//setPosition(min.getInterpolated(max, 0.5f));
 }
 
+
+void ofApp::createGUI() {
+
+	objectDrawConfig.setup("OBJECT DRAWING CONFIG");
+	objectDrawConfig.setPosition(10, 300);
+	objectDrawConfig.add(objectScaleMultiplier.set("OBJECT SCALE", 1.0, 0.1, 4.0));
+
+	trackerConfig.setup("TRACKER CONFIG");
+	trackerConfig.setPosition(10, 100);
+	trackerConfig.add(trackerIterations.set("ITERATIONS", 10, 1, 25));
+	trackerConfig.add(trackerClamp.set("CLAMP", 3, 0, 4));
+	trackerConfig.add(trackerTolerance.set("TOLERANCE", 0.01, 0.01, 1));
+	trackerConfig.add(trackerAttempts.set("ATTEMPTS", 1, 1, 4));
+	//trackerConfig.add(trackerReScale.set("RE-SCALE", 1, 1, 1));
+
+	trackerConfig.loadFromFile("settings.xml");
+
+	
+}
+
+
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
 	if (key == '1')
@@ -314,6 +377,10 @@ void ofApp::keyPressed(int key){
 	if (key == '3')
 	{
 		gameMode = FACE_TEXTURE;
+	}
+	if (key == '4')
+	{
+		gameMode = CLONE_FACE;
 	}
 
 	if (key == 'r') {
