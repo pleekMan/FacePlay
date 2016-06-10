@@ -34,11 +34,22 @@ class ofApp : public ofBaseApp{
 		void dragEvent(ofDragInfo dragInfo);
 		void gotMessage(ofMessage msg);
 		
+
+		GameMode gameMode;
+		void draw3dModel();
+		void drawGesture();
+		void drawFaceTexture();
+		void drawCloneFace();
+		void calculateMeshBoundingBox(vector<ofVec3f>& _points);
+
 		// COMMON
 		ofVideoGrabber camera;
 		ofxFaceTrackerThreaded faceTracker;
 		ofFbo sceneSurface;
 		ofxPanel objectDrawConfig;
+		void drawFaceMeshPoints();
+
+		ofParameter<float> trackerScaleMultiplier;
 
 		// MESH_3D
 		vector<ofxAssimpModelLoader> models3D;
@@ -52,16 +63,14 @@ class ofApp : public ofBaseApp{
 		// GESTURES
 		ExpressionClassifier faceClassifier;
 
-		GameMode gameMode;
-		void draw3dModel();
-		void drawGesture();
-		void drawFaceTexture();
-		void drawCloneFace();
-		void calculateMeshBoundingBox(vector<ofVec3f>& _points);
-
 		// FACE TEXTURE
 		ofImage imageB;
 		ofRectangle meshBoundingBox;
+		ofImage earR;
+		ofImage earL;
+		ofImage nose;
+		float earRotation;
+		float oscIncrement;
 		void testTextureBinding();
 
 		// CLONE FACE

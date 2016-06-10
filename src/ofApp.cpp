@@ -15,13 +15,13 @@ void ofApp::setup(){
 	ofClear(0);
 	sceneSurface.end();
 
-	camera.initGrabber(ofGetWidth(),ofGetHeight());
+	camera.initGrabber(ofGetWidth(), ofGetHeight());
 
 	faceTracker.setup();
 	faceClassifier.load("expressions");
 	faceTracker.setRescale(0.1);
 
-	gameMode = MESH_3D;
+	gameMode = FACE_TEXTURE;
 
 	// GLOBALS - END
 
@@ -40,9 +40,16 @@ void ofApp::setup(){
 	models3D.push_back(woodMask);
 	models3D.push_back(demonMask);
 
-
-	imageB.loadImage("tigerMask_hd.png");
 	backTribal.loadImage("BeachScene.png");
+
+	// FACE TEXTURE SCENE
+	imageB.loadImage("tigerMask_hd.png");
+	earL.loadImage("earLeft.png");
+	earR.loadImage("earRight.png");
+	nose.loadImage("nose.png");
+
+	earRotation = 0;
+	oscIncrement = 0.001;
 
 	// CLONE FACE
 	/*
@@ -85,7 +92,7 @@ void ofApp::update(){
 
 	if (camera.isFrameNew()) {
 		if (faceTracker.update(toCv(camera))) {
-			if(gameMode == GESTURE)faceClassifier.classify(faceTracker);
+			if(gameMode == FACE_TEXTURE)faceClassifier.classify(faceTracker);
 		}
 		
 	}
@@ -139,7 +146,7 @@ void ofApp::draw(){
 	trackerConfig.draw();
 	objectDrawConfig.draw();
 
-	backTribal.draw(0, 0);
+	//backTribal.draw(0, 0);
 	ofDrawBitmapString("FR: " + ofToString(ofGetFrameRate()), ofGetWidth() - 100, 20);
 
 }
@@ -238,6 +245,8 @@ void ofApp::drawGesture() {
 
 void ofApp::drawFaceTexture() {
 
+	// DEFORMING THE TEXTURE WITH THE MESH´S VERTEX
+	/*
 	ofMesh faceMesh = faceTracker.getMesh(faceTracker.getImagePoints());
 	ofMesh overlayMesh = faceTracker.getMesh(faceTracker.getImagePoints());
 
@@ -250,8 +259,8 @@ void ofApp::drawFaceTexture() {
 
 	ofNoFill();
 	ofSetColor(255, 0, 0);
-	ofDrawRectangle(meshBoundingBox);
-	ofDrawCircle(faceMesh.getCentroid(), 10);
+	//ofDrawRectangle(meshBoundingBox);
+	//ofDrawCircle(faceMesh.getCentroid(), 10);
 
 	vector<ofPoint> vertexTexCoords;
 	for (unsigned int i = 0; i < faceMesh.getVertices().size(); i++)
@@ -264,6 +273,9 @@ void ofApp::drawFaceTexture() {
 		//overlayMesh.setTexCoord(i, ofVec2f(faceMesh.getVertex(i).x * numberGrid.getWidth(), faceMesh.getVertex(i).y * numberGrid.getHeight()));
 		//overlayMesh.setTexCoord(i, ofVec2f(xCoord, yCoord));
 	}
+	*/
+
+
 	/*
 	ofPushMatrix();
 	ofScale(ofPoint(objectScaleMultiplier));
@@ -275,9 +287,103 @@ void ofApp::drawFaceTexture() {
 	ofTranslate(faceMesh.getCentroid());
 	*/
 
+	// READING GESTURE
+	int w = 100, h = 12;
+	ofPushStyle();
+	ofFill();
+	ofPushMatrix();
+	ofTranslate(5, 10);
+	int n = faceClassifier.size();
+	int primary = faceClassifier.getPrimaryExpression();
+	ofDrawBitmapString(ofToString(primary) + faceClassifier.getDescription(primary), 300, 300);
+
+	for (int i = 0; i < n; i++) {
+		ofSetColor(i == primary ? ofColor::red : ofColor::black);
+		ofDrawRectangle(0, 0, w * faceClassifier.getProbability(i) + .5, h);
+		ofSetColor(255);
+		ofDrawBitmapString(faceClassifier.getDescription(i), 5, 9);
+		ofTranslate(0, h + 5);
+	}
+
+	if (primary == 0)
+	{
+		ofSetColor(0, 255, 0);
+		ofDrawRectangle(0, 0, 100, 100);
+	}
+
+	ofDrawBitmapString(ofToString(primary), 20, 20);
+
+	ofPopMatrix();
+	ofPopStyle();
+
+	if (faceClassifier.getPrimaryExpression() == 0) // 0 = bocaAbierta in expression (yml file)
+	{
+		oscIncrement = 0.5;
+		ofDrawRectangle(400, 400, 50, 50);
+	}
+	else {
+		oscIncrement = 0.001;
+
+	}
+	
+	earRotation += oscIncrement;
+	//earRotation += ofMap(ofGetMouseX(), 0, ofGetWidth(), 0, 0.5);
+	float normRotation = sin(earRotation);
+
+
+
+	drawFaceMeshPoints();
+
+	// DRAW CAT MASK
+	ofSetColor(255);
+
+	ofVec3f orientation = faceTracker.getOrientation() * 90;
+
+	ofPushMatrix();
+	ofTranslate(faceTracker.getPosition() + ofVec3f(0, 0, -20));
+	ofRotateX(-orientation.x);
+	ofRotateY(-orientation.y);
+	ofRotateZ(orientation.z);
+		
+		// LEFT EAR
+		ofPushMatrix();
+		//ofPoint earLPos = (ofPoint(faceTracker.getObjectPoints()[17].x - 20, faceTracker.getObjectPoints()[17].y - 40) * ofPoint(5)) ;
+		ofPoint earLPos = ofPoint(faceTracker.getObjectPoints()[17].x, faceTracker.getObjectPoints()[17].y) * ofPoint(trackerScaleMultiplier);
+		ofTranslate(earLPos + ofPoint(-20,-40)); // CORRECT THE POSITION A LITTLE BIT
+		ofRotateY(ofRadToDeg(ofMap(normRotation,-1,1,0,HALF_PI * 0.5))); // SHAKE EARS
+		ofDrawRotationAxes(50, 5, 60);
+		ofScale(ofPoint(objectScaleMultiplier));
+		earL.draw(-earL.getWidth(),-earL.getHeight()); // DRAW WITH ANCHOR TRANSPORTED TO BOTTOM RIGHT CORNER
+		ofPopMatrix();
+
+		// RIGHT EAR
+		ofPushMatrix();
+		ofPoint earRPos = ofPoint(faceTracker.getObjectPoints()[26].x, faceTracker.getObjectPoints()[26].y) * ofPoint(trackerScaleMultiplier);
+		ofTranslate(earRPos + ofPoint(20, -40)); // CORRECT THE POSITION A LITTLE BIT
+		ofRotateY(ofRadToDeg(ofMap(normRotation, -1, 1, TWO_PI, TWO_PI - (HALF_PI * 0.5)))); // SHAKE EARS
+		ofDrawRotationAxes(50, 5, 60);
+		ofScale(ofPoint(objectScaleMultiplier));
+		earR.draw(0, -earL.getHeight()); // DRAW WITH ANCHOR TRANSPORTED TO BOTTOM LEFT CORNER
+		ofPopMatrix();
+
+		// NOSE
+		ofPushMatrix();
+		ofSetRectMode(OF_RECTMODE_CENTER);
+		ofPoint nosePos = (ofPoint(faceTracker.getObjectPoints()[30].x, faceTracker.getObjectPoints()[30].y) * ofPoint(5));
+		ofTranslate(nosePos);
+		ofScale(ofPoint(objectScaleMultiplier));
+		//ofRotateX(orientation.z);
+		nose.draw(0, 0);
+		ofSetRectMode(OF_RECTMODE_CORNER);
+		ofPopMatrix();
+		
+
+	ofPopMatrix();
+	
+
 	ofSetColor(255);
 	imageB.getTextureReference().bind();
-	overlayMesh.draw();
+	//overlayMesh.draw();
 	imageB.getTextureReference().unbind();
 	
 	//ofPopMatrix();
@@ -308,6 +414,19 @@ void ofApp::drawCloneFace() {
 		}
 	
 
+}
+
+void ofApp::drawFaceMeshPoints() {
+	// RENDER FACETRACKER MESH POINTS
+
+	ofPushMatrix();
+	ofTranslate(faceTracker.getPosition() + ofVec3f(0, 0, 20));
+	for (int i = 0; i < faceTracker.getObjectPoints().size(); i++)
+	{
+	ofPoint pointPos = ofPoint(faceTracker.getObjectPoints()[i].x, faceTracker.getObjectPoints()[i].y) * ofPoint(trackerScaleMultiplier);
+	ofDrawBitmapString(ofToString(i), pointPos);
+	}
+	ofPopMatrix();
 }
 
 void ofApp::testTextureBinding() {
@@ -378,6 +497,7 @@ void ofApp::createGUI() {
 	trackerConfig.add(trackerClamp.set("CLAMP", 3, 0, 4));
 	trackerConfig.add(trackerTolerance.set("TOLERANCE", 0.01, 0.01, 1));
 	trackerConfig.add(trackerAttempts.set("ATTEMPTS", 1, 1, 4));
+	trackerConfig.add(trackerScaleMultiplier.set("TRACKER SCALING", 5, 0, 8));
 	//trackerConfig.add(trackerReScale.set("RE-SCALE", 1, 1, 1));
 
 	trackerConfig.loadFromFile("settings.xml");
